@@ -3,7 +3,6 @@
 let
   availableBrowsers = {
     firefox = pkgs.firefox;
-    librewolf = pkgs.librewolf;
     brave = pkgs.brave;
   };
 

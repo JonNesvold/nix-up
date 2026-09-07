@@ -7,7 +7,6 @@
     dgop.inputs.nixpkgs.follows = "nixpkgs";
     disko.url = "github:nix-community/disko";
     disko.inputs.nixpkgs.follows = "nixpkgs";
-    flakehub.url = "github:DeterminateSystems/fh";
     sops-nix.url = "github:Mic92/sops-nix";
     sops-nix.inputs.nixpkgs.follows = "nixpkgs";
     home-manager.url = "github:nix-community/home-manager/release-26.05";
@@ -26,7 +25,7 @@
       flake = false;
     };
   };
-  outputs = { nixpkgs, flakehub, home-manager, ... }@inputs:
+  outputs = { nixpkgs, home-manager, ... }@inputs:
   let
     version = "1.3.0";
     userConfig = import ./user-config.nix;
@@ -36,7 +35,7 @@
     nixosConfigurations = {
       "${userConfig.hostname}" = nixpkgs.lib.nixosSystem {
         specialArgs = {
-          inherit inputs version flakehub userConfig;
+          inherit inputs version userConfig;
         };
         modules = [
           ./hosts/default/configuration.nix

@@ -108,9 +108,9 @@ in
         USB_AUTOSUSPEND_ON_BAT = "off";
         PCIE_ASPM_ON_AC = "powersave";
 
-        # EXTREMELY IMPORTANT: Consolidated PCIe Denylist
-        # 0000:00:0d.2 / 0000:00:0d.3 = Thunderbolt controllers
-        # 01:00.0 = Nvidia GPU
+		# Empty = no PCIe runtime-PM denylist. Previously listed the Thunderbolt
+        # controllers (0000:00:0d.2/0d.3) and the Nvidia GPU (01:00.0); dock has
+        # been stable without them. Restore those IDs first if TB flakiness returns.
         RUNTIME_PM_DENYLIST = "";
       };
     };
@@ -155,6 +155,7 @@ in
   # ========================
   users.users.${userConfig.username} = {
     isNormalUser = true;
+    uid = 1001;
     extraGroups = [ "wheel" "networkmanager" "audio" "video" "input" "adbusers" ];  # "docker" removed
     shell = pkgs.zsh;
     packages = with pkgs; [ tree ];
@@ -308,8 +309,6 @@ in
       # User avatars
       "user-avatars/king-${userConfig.username}.png".source = processedKing;
       # Desktop Environment Configs - Wayland only
-      "dunst/dunstrc".source = "${inputs.self}/configs/dunst-config/dunstrc";
-      "rofi/config.rasi".source = "${inputs.self}/configs/rofi-config/config.rasi";
       "alacritty/alacritty.toml".source = "${inputs.self}/configs/alacritty-config/alacritty.toml";
     };
   };
@@ -422,25 +421,6 @@ in
     };
   };
 
-  systemd.user.services.fusuma = {
-    description = "Fusuma Touchpad Gestures";
-    wantedBy = [ "graphical-session.target" ];
-    partOf = [ "graphical-session.target" ];
-    path = with pkgs; [
-      niri
-      rofi
-      coreutils
-      libinput
-      gnugrep
-    ];
-    serviceConfig = {
-      Type = "simple";
-      ExecStart = "${pkgs.fusuma}/bin/fusuma";
-      Restart = "always";
-      RestartSec = 2;
-    };
-  };
-
   # ========================
   # SYSTEM SCRIPTS
   # ========================
@@ -449,14 +429,6 @@ in
       king = ''
         cp ${config.environment.etc."user-avatars/king-${userConfig.username}.png".source} /home/${userConfig.username}/.face
         chmod 644 /home/${userConfig.username}/.face
-      '';
-      rofi-configs = ''
-        mkdir -p ~/.config/rofi
-        ln -sf /etc/rofi/config.rasi ~/.config/rofi/config.rasi
-      '';
-      fusuma-config = ''
-        mkdir -p ~/.config/fusuma
-        ln -sf /etc/fusuma/config.yml ~/.config/fusuma/config.yml
       '';
     };
   };

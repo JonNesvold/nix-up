@@ -84,11 +84,9 @@ fi
 
 echo ""
 echo "Browsers:"
-read -p "  LibreWolf? [Y/n]: " LW_INPUT
 read -p "  Firefox? [Y/n]: " FF_INPUT
 
 BROWSERS="["
-[[ ! $LW_INPUT =~ ^[Nn]$ ]] && BROWSERS="$BROWSERS \"librewolf\""
 [[ ! $FF_INPUT =~ ^[Nn]$ ]] && BROWSERS="$BROWSERS \"firefox\""
 BROWSERS="$BROWSERS ]"
 BROWSERS=$(echo $BROWSERS | sed 's/\[ /[/g; s/ \]/]/g')
@@ -112,15 +110,6 @@ DEVTOOLS=$(echo $DEVTOOLS | sed 's/\[ /[/g; s/ \]/]/g')
 
 # ── Applications ────────────────────────────────────────────────────
 
-echo ""
-echo "Flatpak applications (select what you need):"
-read -p "  Slack? [Y/n]: " SLACK_INPUT
-read -p "  Spotify? [Y/n]: " SPOTIFY_INPUT
-read -p "  Steam? [y/N]: " STEAM_INPUT
-read -p "  Teams? [y/N]: " TEAMS_INPUT
-read -p "  Zoom? [y/N]: " ZOOM_INPUT
-
-FLATPAK_APPS="["
 [[ ! $SLACK_INPUT =~ ^[Nn]$ ]] && FLATPAK_APPS="$FLATPAK_APPS\n      \"com.slack.Slack\""
 [[ ! $SPOTIFY_INPUT =~ ^[Nn]$ ]] && FLATPAK_APPS="$FLATPAK_APPS\n      \"com.spotify.Client\""
 [[ $STEAM_INPUT =~ ^[Yy]$ ]] && FLATPAK_APPS="$FLATPAK_APPS\n      \"com.valvesoftware.Steam\""
@@ -246,8 +235,6 @@ cat > user-config.nix << EOF
   devTools = $DEVTOOLS;
 
   # Applications
-  flatpakApps = $(echo -e "$FLATPAK_APPS");
-  email = $EMAIL;
 
   # Network
   vpn = $VPN;$HOSTS_BLOCK
@@ -299,16 +286,11 @@ git config filter.userconfig.clean 'cat << "CLEAN"
   longitude = 4.9;
 
   # Browsers
-  browsers = [ "librewolf" "firefox" ];
+  browsers = [ "firefox" ];
 
   # Development
   devTools = [ "python" "go" ];
 
-  # Applications
-  flatpakApps = [
-    "com.slack.Slack"
-    "com.spotify.Client"
-  ];
   email = true;
 
   # Network

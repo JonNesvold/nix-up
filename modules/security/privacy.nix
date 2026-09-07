@@ -150,7 +150,6 @@ in
 
           # WireGuard tunnel
           oifname "mullvad" accept
-          udp dport { 51820, 443 } accept comment "WireGuard handshake"
           meta mark 0xca6c accept comment "WireGuard fwmark"
           meta mark & 0xff0000 == 0x80000 accept comment "Tailscale fwmark"
 

@@ -1,0 +1,180 @@
+# perseus - module import graph
+#
+# Verified against: flake.nix, hosts/default/configuration.nix,
+#                   home/default.nix, modules/system/system-packages.nix
+#
+# solid  = edge read in source
+# dashed = inferred, not verified
+# red    = no consumer found in the files read
+
+direction: right
+
+classes: {
+  unverified: {
+    style.stroke-dash: 4
+  }
+  dead: {
+    style.stroke: "#B34747"
+    style.font-color: "#B34747"
+    style.stroke-dash: 2
+  }
+}
+
+usercfg: "user-config.nix"
+
+inputs: "flake inputs" {
+  nixpkgs: "nixpkgs 26.05"
+  nixvim
+  disko
+  hm: "home-manager 26.05"
+  sops: "sops-nix"
+  dms
+  dgop
+  flakehub
+  tbirdcat: "thunderbird-catppuccin"
+  catff: "catppuccin-firefox\nflake: false"
+  betterfox: "betterfox\nflake: false"
+  danksearch: "danksearch\nno consumer found" {
+    class: dead
+  }
+}
+
+flake: "flake.nix\nnixosSystem"
+
+usercfg -> flake: "hostname, vpn"
+inputs.nixpkgs -> flake
+inputs.nixvim -> flake: "nixosModules.nixvim"
+inputs.disko -> flake: "nixosModules.disko"
+inputs.hm -> flake: "nixosModules.home-manager"
+inputs.sops -> flake: "optionals vpn"
+
+nixos: "NixOS system" {
+  config: "hosts/default/configuration.nix"
+  hw: "hosts/default/hardware-configuration.nix"
+  patch: "patches/pci-of-null-subordinate.patch"
+
+  always: "always loaded" {
+    environment: "system/environment.nix"
+    syspkgs: "system/system-packages.nix"
+    greetd: "system/greetd.nix"
+    niri: "system/niri.nix"
+    dmsmod: "system/dms.nix"
+    zsh: "system/zsh.nix"
+    notify: "system/notify.nix"
+    privacy: "security/privacy.nix"
+    techoverlord: "security/techoverlord_protection.nix"
+    telemetry: "security/app-telemetry-deny.nix"
+    sshconfig: "security/ssh-config.nix"
+    nixvimmod: "dev/nixvim.nix"
+    gpl: "dev/gpl.nix"
+  }
+
+  gated: "conditional on user-config" {
+    clammy: "hardware/clammy.nix"
+    tbolt: "hardware/thunderbolt-ethernet.nix"
+    nvidia: "hardware/nvidia.nix"
+    vpn: "security/vpn.nix"
+    secrets: "security/secrets.nix"
+    thunderbird: "apps/thunderbird.nix"
+  }
+}
+
+flake -> nixos.config: "modules[]"
+inputs.dms -> nixos.config: "nixosModules.default"
+nixos.config -> nixos.hw
+nixos.config -> nixos.patch: "kernelPatches"
+nixos.config -> nixos.always
+
+nixos.config -> nixos.gated.clammy: "isLaptop"
+nixos.config -> nixos.gated.tbolt: "thunderbolt"
+nixos.config -> nixos.gated.nvidia: "hasGPU"
+nixos.config -> nixos.gated.vpn: "vpn"
+nixos.config -> nixos.gated.secrets: "vpn"
+nixos.config -> nixos.gated.thunderbird: "email"
+
+hm: "home-manager" {
+  root: "home/default.nix"
+  zshhm: "home/zsh"
+  ffhm: "home/firefox\ndefault, policies, search, settings"
+}
+
+flake -> hm.root: "users.<username>"
+hm.root -> hm.zshhm
+hm.root -> hm.ffhm: "firefox in browsers"
+
+packages: "packages/" {
+  logseq: "sandboxed-logseq.nix\nplain import, needs userConfig"
+  frontend: "sandboxed-frontend.nix"
+  steam: "sandboxed-steam.nix"
+  edge: "sandboxed-edge.nix"
+  spotify: "sandboxed-spotify.nix"
+  teams: "sandboxed-teams.nix"
+  slack: "sandboxed-slack.nix"
+  perseusnet: "perseus-net.nix"
+  ntldaemon: "ntl-daemon.nix"
+  clammypkg: "clammy.nix"
+  ntl: "ntl.nix\nnot in systemPackages" {
+    class: dead
+  }
+}
+
+nixos.always.syspkgs -> packages.logseq: "import"
+nixos.always.syspkgs -> packages.frontend: "callPackage"
+nixos.always.syspkgs -> packages.steam: "callPackage"
+nixos.always.syspkgs -> packages.edge: "callPackage"
+nixos.always.syspkgs -> packages.spotify: "callPackage"
+nixos.always.syspkgs -> packages.teams: "callPackage"
+nixos.always.syspkgs -> packages.slack: "callPackage"
+nixos.always.syspkgs -> packages.perseusnet: "callPackage"
+nixos.always.syspkgs -> packages.ntldaemon: "callPackage"
+inputs.dms -> nixos.always.syspkgs: "packages.default"
+inputs.dgop -> nixos.always.syspkgs: "packages.default"
+inputs.flakehub -> nixos.always.syspkgs: "packages.default"
+nixos.gated.clammy -> packages.clammypkg {
+  class: unverified
+}
+
+programs: "programs/ (Rust)" {
+  clammy: "clammy\nwayland idle, lock, dpms"
+  ntl: "ntl\nscanners + report"
+  ntldaemon: "ntl-daemon"
+  perseusnet: "perseus-net"
+}
+
+packages.clammypkg -> programs.clammy {
+  class: unverified
+}
+packages.ntl -> programs.ntl {
+  class: unverified
+}
+packages.ntldaemon -> programs.ntldaemon {
+  class: unverified
+}
+packages.perseusnet -> programs.perseusnet {
+  class: unverified
+}
+packages.ntldaemon -> packages.ntl: "runtime dep?" {
+  class: unverified
+}
+
+orphans: "no import edge found" {
+  syshw: "system/hardware-configuration.nix" {
+    class: dead
+  }
+  sshkeys1: "modules/ssh-keys.nix" {
+    class: dead
+  }
+  sshkeys2: "modules/security/ssh-keys.nix" {
+    class: dead
+  }
+  librewolfmod: "modules/apps/librewolf.nix" {
+    class: dead
+  }
+}
+
+nixos.always.sshconfig -> orphans.sshkeys1: "imports one of these?" {
+  class: unverified
+}
+nixos.always.sshconfig -> orphans.sshkeys2 {
+  class: unverified
+}

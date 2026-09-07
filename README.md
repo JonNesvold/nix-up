@@ -57,7 +57,6 @@ To handle gaps in the Wayland ecosystem, Perseus ships custom Rust daemons:
 
 - **`ntl-daemon` (NastyTechLords)** — Security auditing daemon. Runs every 6 hours via systemd timer, inspecting processes, network state, filesystem integrity, privacy leaks, and Nix configuration. Reports logged to `/var/log/nastyTechLords/`. Run `ntl report` for the latest audit.
 
-- **`perseus-net`** — Rust-based Wi-Fi menu.
 
 ## Application Sandboxing
 
@@ -116,7 +115,7 @@ modules/
   security/             # Privacy, firewall, telemetry deny, VPN, SSH
   system/               # Niri, DMS, greetd, packages, environment
 home/                   # Home-manager: Firefox, zsh
-programs/               # Custom Rust daemons (clammy, ntl, perseus-net)
+programs/               # Custom Rust daemons (clammy, ntl)
 packages/               # Bubblewrap prisons + custom program derivations
 configs/                # Dotfiles (Alacritty, GTK, Mullvad)
 secrets/                # sops-encrypted VPN config
@@ -133,7 +132,7 @@ Everything toggleable lives in `user-config.nix`:
 | `thunderbolt` | bool    | Thunderbolt/dock support                             |
 | `vpn`         | bool    | Mullvad WireGuard + sops-nix secrets                 |
 | `email`       | bool    | Thunderbird                                          |
-| `browsers`    | list    | `"firefox"`, `"librewolf"`, `"brave"`                |
+| `browsers`    | list    | `"firefox"`, `"brave"`                |
 | `devTools`    | list    | `"python"`, `"go"`, `"rust"`, `"node"`, `"android"`  |
 | `extraHosts`  | attrset | Custom `/etc/hosts` entries                          |
 

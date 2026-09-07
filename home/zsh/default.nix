@@ -116,6 +116,9 @@
 
       # docx → md (lawyers sending Word docs)
       docxmd() { pandoc "$1" -t markdown -o "''${1%.docx}.md" }
+
+	  
+      [[ -f ~/.config/forgejo/token ]] && export FORGEJO_TOKEN=$(cat ~/.config/forgejo/token)
     '';
 
     envExtra = ''
@@ -123,10 +126,6 @@
       --color=bg+:#363a4f,bg:#24273a,spinner:#f4dbd6,hl:#ed8796 \
       --color=fg:#cad3f5,header:#ed8796,info:#c6a0f6,pointer:#f4dbd6 \
       --color=marker:#f4dbd6,fg+:#cad3f5,prompt:#c6a0f6,hl+:#ed8796"
-    '';
-
-    initExtra = ''
-      [[ -f ~/.config/forgejo/token ]] && export FORGEJO_TOKEN=$(cat ~/.config/forgejo/token)
     '';
 
     shellAliases = {
@@ -157,7 +156,6 @@
       ls = "${pkgs.eza}/bin/eza -1 --icons=auto";
       tree = "${pkgs.eza}/bin/eza --icons=auto --tree";
       grep = "grep --color=always";
-      remote-deploy="nixos-rebuild switch --flake .#omnissiah --target-host jon@omnissiah --build-host jon@omnissiah --sudo --ask-sudo-password";
     };
   };
 }

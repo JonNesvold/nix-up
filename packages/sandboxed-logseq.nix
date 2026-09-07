@@ -6,7 +6,6 @@ let
     url = "https://github.com/logseq/logseq/releases/download/${version}/Logseq-linux-x64-${version}.AppImage";
     sha256 = "1l95gcr89hdv0wk6xv25vh3zcqcq78mrrz6ly1z2rmlnyi9114cb"; 
   };
-  appimageContents = pkgs.appimageTools.extract { inherit pname version src; };
   isolationPath = "/home/${userConfig.username}/.local/share/app-isolation/logseq";
 in
 pkgs.appimageTools.wrapType2 {

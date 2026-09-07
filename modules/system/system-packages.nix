@@ -1,8 +1,7 @@
-{pkgs, userConfig ? null, flakehub, inputs, ... }:
+{pkgs, userConfig ? null, inputs, ... }:
 let
   sandboxed-logseq = import ../../packages/sandboxed-logseq.nix { inherit pkgs userConfig; };
   sandboxed-frontend = pkgs.callPackage ../../packages/sandboxed-frontend.nix {};
-  perseus-net = pkgs.callPackage ../../packages/perseus-net.nix {};
   dms = inputs.dms.packages.${pkgs.system}.default;
   dgop = inputs.dgop.packages.${pkgs.system}.default;
   ntl-daemon = pkgs.callPackage ../../packages/ntl-daemon.nix {};
@@ -16,7 +15,6 @@ in
   # Global software packages to install
   environment.systemPackages = with pkgs; [
     # Development tools
-    flakehub.packages.${pkgs.system}.default
     curl
     git
     gcc
@@ -182,13 +180,12 @@ in
       FILE="$1"
       HTML="/tmp/$(basename "$FILE" .md).html"
       pandoc "$FILE" -s -o "$HTML"
-      librewolf "$HTML" &
+      firefox "$HTML" &
       while inotifywait -e modify "$FILE"; do
         pandoc "$FILE" -s -o "$HTML"
       done
     '')
     inotify-tools
-    perseus-net
   ];
 
   # This registers the fonts with your system so applications can find them.
