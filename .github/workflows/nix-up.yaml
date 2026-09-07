@@ -18,6 +18,7 @@ jobs:
           cat > user-config.nix << 'EOF'
           {
             username = "ci-user";
+            uid = 1000;
             hostname = "perseus";
             isLaptop = false;
             hasGPU = false;
