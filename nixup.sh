@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-echo "nix-up setup"
+echo "perseus setup"
 echo "============"
 
 if [ -f user-config.nix ]; then
@@ -27,8 +27,8 @@ fi
 read -p "Username [$USER]: " USERNAME
 USERNAME=${USERNAME:-$USER}
 
-read -p "Hostname [nixup]: " HOSTNAME
-HOSTNAME=${HOSTNAME:-nixup}
+read -p "Hostname [perseus]: " HOSTNAME
+HOSTNAME=${HOSTNAME:-perseus}
 
 read -p "Full name (git): " GIT_NAME
 read -p "Email (git): " GIT_EMAIL
@@ -271,7 +271,7 @@ git config filter.userconfig.clean 'cat << "CLEAN"
 {
   # Identity
   username = "user";
-  hostname = "nixup";
+  hostname = "perseus";
   gitName = "user";
   gitEmail = "user@example.com";
 
