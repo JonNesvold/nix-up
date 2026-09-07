@@ -2,12 +2,14 @@
 set -e
 
 echo "perseus setup"
-echo "============"
+echo "============="
 
 if [ -f user-config.nix ]; then
 	echo "user-config.nix already exists."
 	read -p "Overwrite? [y/N]: " OVERWRITE
-	[[ ! $OVERWRITE =~ ^[Yy]$ ]] && exit 0
+	if [[ ! $OVERWRITE =~ ^[Yy]$ ]]; then
+		exit 0
+	fi
 fi
 
 # ── Hardware detection ──────────────────────────────────────────────
@@ -19,19 +21,33 @@ THUNDERBOLT_DETECTED=false
 if grep -qi nvidia /sys/class/drm/card*/device/uevent 2>/dev/null; then
 	GPU_DETECTED=true
 fi
-[ -e /sys/class/power_supply/BAT0 ] && LAPTOP_DETECTED=true
-[ -d /sys/bus/thunderbolt ] && THUNDERBOLT_DETECTED=true
+if [ -e /sys/class/power_supply/BAT0 ]; then
+	LAPTOP_DETECTED=true
+fi
+if [ -d /sys/bus/thunderbolt ]; then
+	THUNDERBOLT_DETECTED=true
+fi
 
 # ── Identity ────────────────────────────────────────────────────────
 
 read -p "Username [$USER]: " USERNAME
 USERNAME=${USERNAME:-$USER}
 
-read -p "Hostname [perseus]: " HOSTNAME
-HOSTNAME=${HOSTNAME:-perseus}
+read -p "Hostname [perseus]: " HOST_NAME
+HOST_NAME=${HOST_NAME:-perseus}
 
 read -p "Full name (git): " GIT_NAME
 read -p "Email (git): " GIT_EMAIL
+
+# uid must be declared so the audit daemon can address the user's session bus.
+# On an existing system, reuse the account's real uid; on a fresh install the
+# account does not exist yet and NixOS will allocate 1000.
+if id -u "$USERNAME" >/dev/null 2>&1; then
+	USER_UID=$(id -u "$USERNAME")
+else
+	USER_UID=1000
+fi
+echo "uid: $USER_UID"
 
 # ── Hardware toggles ────────────────────────────────────────────────
 
@@ -54,7 +70,9 @@ if [[ $HAS_GPU == "true" ]]; then
 
 	parse_pci_bus_id() {
 		local raw=$1
-		[[ -z "$raw" ]] && return
+		if [[ -z "$raw" ]]; then
+			return
+		fi
 		local cleaned=$raw
 		if [[ $(echo "$cleaned" | grep -o ':' | wc -l) -eq 2 ]]; then
 			cleaned="${cleaned#*:}"
@@ -66,14 +84,22 @@ if [[ $HAS_GPU == "true" ]]; then
 	INTEL_RAW=$(lspci | grep -i "vga.*intel" | head -1 | cut -d' ' -f1)
 	NVIDIA_RAW=$(lspci | grep -i "vga.*nvidia\|3d.*nvidia" | head -1 | cut -d' ' -f1)
 
-	[[ -n "$INTEL_RAW" ]] && INTEL_BUS_ID=$(parse_pci_bus_id "$INTEL_RAW")
-	[[ -n "$NVIDIA_RAW" ]] && NVIDIA_BUS_ID=$(parse_pci_bus_id "$NVIDIA_RAW")
+	if [[ -n "$INTEL_RAW" ]]; then
+		INTEL_BUS_ID=$(parse_pci_bus_id "$INTEL_RAW")
+	fi
+	if [[ -n "$NVIDIA_RAW" ]]; then
+		NVIDIA_BUS_ID=$(parse_pci_bus_id "$NVIDIA_RAW")
+	fi
 
 	if [[ -z "$INTEL_BUS_ID" || -z "$NVIDIA_BUS_ID" ]]; then
 		echo "Warning: Could not auto-detect GPU bus IDs."
 		echo "Run 'lspci | grep -Ei \"vga|3d\"' to find them."
-		[[ -z "$INTEL_BUS_ID" ]] && read -p "Intel bus ID (e.g. PCI:0:2:0): " INTEL_BUS_ID
-		[[ -z "$NVIDIA_BUS_ID" ]] && read -p "NVIDIA bus ID (e.g. PCI:1:0:0): " NVIDIA_BUS_ID
+		if [[ -z "$INTEL_BUS_ID" ]]; then
+			read -p "Intel bus ID (e.g. PCI:0:2:0): " INTEL_BUS_ID
+		fi
+		if [[ -z "$NVIDIA_BUS_ID" ]]; then
+			read -p "NVIDIA bus ID (e.g. PCI:1:0:0): " NVIDIA_BUS_ID
+		fi
 	fi
 
 	echo "Intel: $INTEL_BUS_ID"
@@ -84,12 +110,18 @@ fi
 
 echo ""
 echo "Browsers:"
-read -p "  Firefox? [Y/n]: " FF_INPUT
+read -p "  Firefox (hardened)? [Y/n]: " FF_INPUT
+read -p "  Brave (plain package)? [y/N]: " BRAVE_INPUT
 
 BROWSERS="["
-[[ ! $FF_INPUT =~ ^[Nn]$ ]] && BROWSERS="$BROWSERS \"firefox\""
+if [[ ! $FF_INPUT =~ ^[Nn]$ ]]; then
+	BROWSERS="$BROWSERS \"firefox\""
+fi
+if [[ $BRAVE_INPUT =~ ^[Yy]$ ]]; then
+	BROWSERS="$BROWSERS \"brave\""
+fi
 BROWSERS="$BROWSERS ]"
-BROWSERS=$(echo $BROWSERS | sed 's/\[ /[/g; s/ \]/]/g')
+BROWSERS=$(echo "$BROWSERS" | sed 's/\[ /[/g; s/ \]/]/g')
 
 # ── Dev tools ───────────────────────────────────────────────────────
 
@@ -99,34 +131,43 @@ read -p "  Python? [Y/n]: " PY_INPUT
 read -p "  Go? [Y/n]: " GO_INPUT
 read -p "  Rust? [y/N]: " RS_INPUT
 read -p "  Node.js? [y/N]: " NODE_INPUT
+read -p "  Android? [y/N]: " ANDROID_INPUT
 
 DEVTOOLS="["
-[[ ! $PY_INPUT =~ ^[Nn]$ ]] && DEVTOOLS="$DEVTOOLS \"python\""
-[[ ! $GO_INPUT =~ ^[Nn]$ ]] && DEVTOOLS="$DEVTOOLS \"go\""
-[[ $RS_INPUT =~ ^[Yy]$ ]] && DEVTOOLS="$DEVTOOLS \"rust\""
-[[ $NODE_INPUT =~ ^[Yy]$ ]] && DEVTOOLS="$DEVTOOLS \"node\""
+if [[ ! $PY_INPUT =~ ^[Nn]$ ]]; then
+	DEVTOOLS="$DEVTOOLS \"python\""
+fi
+if [[ ! $GO_INPUT =~ ^[Nn]$ ]]; then
+	DEVTOOLS="$DEVTOOLS \"go\""
+fi
+if [[ $RS_INPUT =~ ^[Yy]$ ]]; then
+	DEVTOOLS="$DEVTOOLS \"rust\""
+fi
+if [[ $NODE_INPUT =~ ^[Yy]$ ]]; then
+	DEVTOOLS="$DEVTOOLS \"node\""
+fi
+if [[ $ANDROID_INPUT =~ ^[Yy]$ ]]; then
+	DEVTOOLS="$DEVTOOLS \"android\""
+fi
 DEVTOOLS="$DEVTOOLS ]"
-DEVTOOLS=$(echo $DEVTOOLS | sed 's/\[ /[/g; s/ \]/]/g')
+DEVTOOLS=$(echo "$DEVTOOLS" | sed 's/\[ /[/g; s/ \]/]/g')
 
 # ── Applications ────────────────────────────────────────────────────
-
-[[ ! $SLACK_INPUT =~ ^[Nn]$ ]] && FLATPAK_APPS="$FLATPAK_APPS\n      \"com.slack.Slack\""
-[[ ! $SPOTIFY_INPUT =~ ^[Nn]$ ]] && FLATPAK_APPS="$FLATPAK_APPS\n      \"com.spotify.Client\""
-[[ $STEAM_INPUT =~ ^[Yy]$ ]] && FLATPAK_APPS="$FLATPAK_APPS\n      \"com.valvesoftware.Steam\""
-[[ $TEAMS_INPUT =~ ^[Yy]$ ]] && FLATPAK_APPS="$FLATPAK_APPS\n      \"com.github.IsmaelMartinez.teams_for_linux\""
-[[ $ZOOM_INPUT =~ ^[Yy]$ ]] && FLATPAK_APPS="$FLATPAK_APPS\n      \"us.zoom.Zoom\""
-FLATPAK_APPS="$FLATPAK_APPS\n    ]"
 
 echo ""
 read -p "Email client (Thunderbird)? [Y/n]: " EMAIL_INPUT
 EMAIL=true
-[[ $EMAIL_INPUT =~ ^[Nn]$ ]] && EMAIL=false
+if [[ $EMAIL_INPUT =~ ^[Nn]$ ]]; then
+	EMAIL=false
+fi
 
 # ── VPN ─────────────────────────────────────────────────────────────
 
 read -p "VPN support (Mullvad WireGuard)? [y/N]: " VPN_INPUT
 VPN=false
-[[ $VPN_INPUT =~ ^[Yy]$ ]] && VPN=true
+if [[ $VPN_INPUT =~ ^[Yy]$ ]]; then
+	VPN=true
+fi
 
 # ── Location ────────────────────────────────────────────────────────
 
@@ -160,14 +201,16 @@ if [[ $HOSTS_INPUT =~ ^[Yy]$ ]]; then
 	echo "Empty line to finish."
 	while true; do
 		read -p "  > " HOSTS_LINE
-		[[ -z "$HOSTS_LINE" ]] && break
+		if [[ -z "$HOSTS_LINE" ]]; then
+			break
+		fi
 		HOST_IP=$(echo "$HOSTS_LINE" | awk '{print $1}')
 		HOST_NAMES=$(echo "$HOSTS_LINE" | awk '{$1=""; print $0}' | xargs)
 		NAMES_NIX=""
 		for name in $HOST_NAMES; do
 			NAMES_NIX="$NAMES_NIX \"$name\""
 		done
-		EXTRA_HOSTS="$EXTRA_HOSTS\n      \"$HOST_IP\" = [$NAMES_NIX ];"
+		EXTRA_HOSTS="$EXTRA_HOSTS\n    \"$HOST_IP\" = [$NAMES_NIX ];"
 	done
 fi
 
@@ -183,7 +226,7 @@ if [[ $SSH_INPUT =~ ^[Yy]$ ]]; then
   $USERNAME = "$SSH_KEY";
 }
 EOF
-	echo "  Created modules/security/ssh-keys.nix"
+	echo "  Created modules/security/ssh-keys.nix (sshd will be enabled on port 7889)"
 else
 	cat > modules/security/ssh-keys.nix << EOF
 {
@@ -191,7 +234,7 @@ else
   # $USERNAME = "ssh-ed25519 AAAAC3... your-email@example.com";
 }
 EOF
-	echo "  Created empty modules/security/ssh-keys.nix"
+	echo "  Created empty modules/security/ssh-keys.nix (sshd stays disabled)"
 fi
 
 # ── Generate user-config.nix ────────────────────────────────────────
@@ -211,10 +254,12 @@ if [[ -n "$EXTRA_HOSTS" ]]; then
 fi
 
 cat > user-config.nix << EOF
+# Perseus User Configuration
 {
   # Identity
   username = "$USERNAME";
-  hostname = "$HOSTNAME";
+  uid = $USER_UID;
+  hostname = "$HOST_NAME";
   gitName = "$GIT_NAME";
   gitEmail = "$GIT_EMAIL";
 
@@ -235,6 +280,7 @@ cat > user-config.nix << EOF
   devTools = $DEVTOOLS;
 
   # Applications
+  email = $EMAIL;
 
   # Network
   vpn = $VPN;$HOSTS_BLOCK
@@ -245,32 +291,44 @@ cat > user-config.nix << EOF
 }
 EOF
 
-# ── Create host directory ───────────────────────────────────────────
+echo ""
+echo "  Wrote user-config.nix"
+
+# ── Host hardware configuration ─────────────────────────────────────
 
 HOST_DIR="hosts/default"
 mkdir -p "$HOST_DIR"
 
-if [ ! -f "$HOST_DIR/hardware-configuration.nix" ]; then
-	if [ -f /etc/nixos/hardware-configuration.nix ]; then
-		cp /etc/nixos/hardware-configuration.nix "$HOST_DIR/"
-		echo "  Copied hardware-configuration.nix to $HOST_DIR/"
-	else
-		echo "  Warning: /etc/nixos/hardware-configuration.nix not found."
-		echo "  Copy it manually: cp /etc/nixos/hardware-configuration.nix $HOST_DIR/"
-	fi
+if [ -f /etc/nixos/hardware-configuration.nix ]; then
+	cp /etc/nixos/hardware-configuration.nix "$HOST_DIR/hardware-configuration.nix"
+	echo "  Copied hardware-configuration.nix to $HOST_DIR/"
+else
+	echo "  Warning: /etc/nixos/hardware-configuration.nix not found."
+	echo "  Copy it manually: cp /etc/nixos/hardware-configuration.nix $HOST_DIR/"
 fi
 
 # ── Git filters ─────────────────────────────────────────────────────
+#
+# These keep machine-specific and secret content out of commits. The clean
+# filter replaces the working-tree content with a generic placeholder when
+# staging; the smudge filter is a passthrough so your local file is untouched.
+#
+# Filters are registered in .git/config, which is per-clone and not versioned.
+# Anyone who clones without running this script gets no filter at all.
 
+echo ""
 echo "Setting up git filters..."
 
 grep -q "user-config.nix filter=userconfig" .gitattributes 2>/dev/null || echo "user-config.nix filter=userconfig" >> .gitattributes
 grep -q "modules/security/ssh-keys.nix filter=sshkeys" .gitattributes 2>/dev/null || echo "modules/security/ssh-keys.nix filter=sshkeys" >> .gitattributes
+grep -q "hosts/default/hardware-configuration.nix filter=hardware" .gitattributes 2>/dev/null || echo "hosts/default/hardware-configuration.nix filter=hardware" >> .gitattributes
 
 git config filter.userconfig.clean 'cat << "CLEAN"
+# Perseus User Configuration
 {
   # Identity
   username = "user";
+  uid = 1000;
   hostname = "perseus";
   gitName = "user";
   gitEmail = "user@example.com";
@@ -291,6 +349,7 @@ git config filter.userconfig.clean 'cat << "CLEAN"
   # Development
   devTools = [ "python" "go" ];
 
+  # Applications
   email = true;
 
   # Network
@@ -311,8 +370,14 @@ git config filter.sshkeys.clean 'cat << "CLEAN"
 CLEAN'
 git config filter.sshkeys.smudge cat
 
+git config filter.hardware.clean 'cat hosts/default/hardware-configuration.ci.nix'
+git config filter.hardware.smudge cat
+
 git update-index --skip-worktree user-config.nix 2>/dev/null || true
 git update-index --skip-worktree modules/security/ssh-keys.nix 2>/dev/null || true
+git update-index --skip-worktree hosts/default/hardware-configuration.nix 2>/dev/null || true
+
+echo "  Registered filters for user-config.nix, ssh-keys.nix, hardware-configuration.nix"
 
 # ── Done ────────────────────────────────────────────────────────────
 
@@ -323,7 +388,13 @@ echo "Next steps:"
 echo "  1. Review user-config.nix"
 if [ ! -f "$HOST_DIR/hardware-configuration.nix" ]; then
 	echo "  2. Copy hardware config: cp /etc/nixos/hardware-configuration.nix $HOST_DIR/"
-	echo "  3. sudo nixos-rebuild switch --flake .#$HOSTNAME"
+	echo "  3. sudo nixos-rebuild switch --flake .#$HOST_NAME"
 else
-	echo "  2. sudo nixos-rebuild switch --flake .#$HOSTNAME"
+	echo "  2. sudo nixos-rebuild switch --flake .#$HOST_NAME"
+fi
+
+if [[ $HAS_GPU == "true" || $VPN == "true" ]]; then
+	echo ""
+	echo "First boot on new hardware: set hasGPU = false; and vpn = false; first,"
+	echo "then enable them once the system boots successfully."
 fi

@@ -155,7 +155,7 @@ in
   # ========================
   users.users.${userConfig.username} = {
     isNormalUser = true;
-    uid = 1001;
+    uid = userConfig.uid;
     extraGroups = [ "wheel" "networkmanager" "audio" "video" "input" "adbusers" ];  # "docker" removed
     shell = pkgs.zsh;
     packages = with pkgs; [ tree ];
