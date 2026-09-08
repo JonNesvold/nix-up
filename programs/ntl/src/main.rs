@@ -58,7 +58,7 @@ fn main() -> Result<()> {
     save_report(&report)?;
 
     if report.has_critical() {
-        std::process::exit(1);
+        std::process::exit(2);
     }
     Ok(())
 }

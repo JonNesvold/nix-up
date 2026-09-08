@@ -20,7 +20,7 @@
         keyboard {
             xkb {
                 layout "us,no"
-                options "caps:escape,eurosign:e,grp:rwin_toggle"
+                options "caps:escape,eurosign:e,grp:ctrl_space_toggle"
             }
         }
 
@@ -303,9 +303,7 @@
     // AUTOSTART
     // =====================
     spawn-at-startup "dms" "run"
-    spawn-at-startup "opensnitch-ui"
     spawn-at-startup "clammy-start-session"
-    spawn-at-startup "ntl-daemon"
 
     // Clipboard history (for DMS clipboard widget)
     spawn-at-startup "bash" "-c" "wl-paste --watch cliphist store &"

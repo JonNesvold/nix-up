@@ -89,6 +89,10 @@
       };
     };
 
+	extraPackages = with pkgs; [
+      prettier
+    ];
+
     extraPlugins = with pkgs.vimPlugins; [
       vim-easymotion
       vim-surround
@@ -152,6 +156,14 @@
 
       vim.cmd("highlight Normal guibg=NONE ctermbg=NONE")
       vim.cmd("highlight NonText guibg=NONE ctermbg=NONE")
+      vim.api.nvim_create_autocmd("FileType", {
+        pattern = { "rust", "nix" },
+        callback = function()
+          vim.bo.tabstop = 4
+          vim.bo.shiftwidth = 4
+          vim.bo.expandtab = false
+        end,
+      })
     '';
 
     opts = {

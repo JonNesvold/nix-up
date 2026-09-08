@@ -23,13 +23,41 @@ let
     XDG_RT="/run/user/$USER_ID"
     WAYLAND_SOCK="''${WAYLAND_DISPLAY:-wayland-1}"
     X_DISPLAY="''${DISPLAY:-:0}"
+    HOST_BUS="''${DBUS_SESSION_BUS_ADDRESS:-unix:path=$XDG_RT/bus}"
     JAIL_PATH="${pkgs.lib.makeBinPath runtimeDependencies}:/run/current-system/sw/bin"
-    exec ${pkgs.systemd}/bin/systemd-run \
+
+    # Filtered session bus. pressure-vessel hard-binds $XDG_RUNTIME_DIR/bus inside
+    # the jail; with no socket there its inner bwrap aborts and no UI ever starts.
+    PROXY_SOCK="$XDG_RT/steam-bus-proxy"
+    SYNC_FIFO="$XDG_RT/steam-bus-proxy.sync"
+    rm -f "$PROXY_SOCK" "$SYNC_FIFO"
+    mkfifo -m 600 "$SYNC_FIFO"
+
+    # --filter denies every name; --log prints each denied call, so the log tells
+    # you which --talk= to add when a Steam feature misbehaves.
+    ${pkgs.xdg-dbus-proxy}/bin/xdg-dbus-proxy \
+      --fd=3 \
+      "$HOST_BUS" \
+      "$PROXY_SOCK" \
+      --filter \
+      --log \
+      3>"$SYNC_FIFO" &
+    PROXY_PID=$!
+    trap 'kill "$PROXY_PID" 2>/dev/null; rm -f "$PROXY_SOCK" "$SYNC_FIFO"' EXIT
+
+    # Blocks until the proxy is listening — no sleep, no race.
+    exec 9<"$SYNC_FIFO"
+    rm -f "$SYNC_FIFO"
+    if ! read -r -N 1 -u 9; then
+      echo "steam: xdg-dbus-proxy exited before it was ready (bus: $HOST_BUS)" >&2
+      exit 1
+    fi
+
+    ${pkgs.systemd}/bin/systemd-run \
       --user --scope --collect \
-      --unit=sandboxed-steam-$(date +%s) \
+	  --unit=sandboxed-steam-$(date +%s) \
       --description="Sandboxed Steam" \
-      -p MemoryHigh=12G \
-      -p MemoryMax=14G \
+      -p MemoryMax=22G \
       ${pkgs.bubblewrap}/bin/bwrap \
         --unshare-all \
         --share-net \
@@ -57,6 +85,7 @@ let
         --bind "$ISOLATION_DIR" "$HOME" \
         --bind "$HOME/Downloads" "$HOME/Downloads" \
         --dir "$XDG_RT" \
+        --bind "$PROXY_SOCK" "$XDG_RT/bus" \
         --bind-try "$XDG_RT/$WAYLAND_SOCK" "$XDG_RT/$WAYLAND_SOCK" \
         --bind-try "$XDG_RT/pipewire-0" "$XDG_RT/pipewire-0" \
         --bind-try "$XDG_RT/pulse" "$XDG_RT/pulse" \
@@ -65,6 +94,7 @@ let
         --setenv XDG_RUNTIME_DIR "$XDG_RT" \
         --setenv WAYLAND_DISPLAY "$WAYLAND_SOCK" \
         --setenv DISPLAY "$X_DISPLAY" \
+        --setenv DBUS_SESSION_BUS_ADDRESS "unix:path=$XDG_RT/bus" \
         --setenv PULSE_SERVER "unix:$XDG_RT/pulse/native" \
         --setenv LD_LIBRARY_PATH "$LD_LIBRARY_PATH" \
         --setenv STEAM_EXTRA_PROFILE "$STEAM_EXTRA_PROFILE" \

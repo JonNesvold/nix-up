@@ -1,4 +1,4 @@
-{ pkgs, inputs, userConfig, config, ... }:
+{ pkgs, userConfig, config, ... }:
 let
   nastyTechLords = pkgs.callPackage ../../packages/ntl.nix {};
 
@@ -66,8 +66,8 @@ let
                 echo '{"icon": "󰔟", "status": "pending"}'
                 exit 0
             fi
-            CRITICAL=$(grep -c "^\[CRITICAL\]" "$LOG_DIR/latest-summary.txt" 2>/dev/null || echo "0")
-            WARNING=$(grep -c "^\[WARNING\]" "$LOG_DIR/latest-summary.txt" 2>/dev/null || echo "0")
+			CRITICAL=$(grep -c "^\[CRITICAL\]" "$LOG_DIR/latest-summary.txt" 2>/dev/null)
+            WARNING=$(grep -c "^\[WARNING\]" "$LOG_DIR/latest-summary.txt" 2>/dev/null)
             if [ "$CRITICAL" -gt 0 ]; then
                 echo "{\"icon\": \"󰀦\", \"status\": \"critical\", \"critical\": $CRITICAL, \"warning\": $WARNING}"
             elif [ "$WARNING" -gt 0 ]; then
@@ -87,6 +87,7 @@ in
 
   environment.systemPackages = [
     nastyTechLords
+    ntlCli
     pkgs.alacritty
     pkgs.libnotify
   ];
@@ -94,8 +95,9 @@ in
   systemd.services.nastyTechLords = {
     description = "NastyTechLords Security Audit Daemon";
     serviceConfig = {
-        Type = "oneshot";
+		Type = "oneshot";
         ExecStart = "${nastyTechLords}/bin/nasty-tech-lords";
+        SuccessExitStatus = [ 2 ];
         
         StandardOutput = "journal";
         StandardError = "journal";

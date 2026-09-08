@@ -28,10 +28,17 @@
       "mobile.events.data.microsoft.com"
       "telemetry.microsoft.com"
       "sqm.telemetry.microsoft.com"
-      "logfiles.zoom.us"
+	  "logfiles.zoom.us"
       "events.zoom.us"
       "analytics.zoom.us"
       "crashdump.spotify.com"
+      "google-analytics.com"
+      "www.google-analytics.com"
+      "ssl.google-analytics.com"
+      "region1.google-analytics.com"
+      "analytics.google.com"
+      "api.segment.io"
+      "cdn.segment.com"
     ];
   };
 
